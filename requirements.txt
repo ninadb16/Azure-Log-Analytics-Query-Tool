@@ -1,0 +1,16 @@
+# Core Web Framework
+Flask>=2.0.0
+
+# Azure SDKs for interaction
+# azure-identity: Used for DefaultAzureCredential or ClientSecretCredential
+azure-identity>=1.15.0
+# azure-mgmt-resource: Used to discover workspaces (if that logic is implemented)
+azure-mgmt-resource>=23.0.0
+# azure-monitor-query: Used to execute the KQL queries against Log Analytics
+azure-monitor-query>=1.3.0
+
+# Environment Handling (for loading secrets from a .env file, if used)
+python-dotenv>=1.0.0
+
+# Configuration Management (if using .yaml for complex config, optional but good practice)
+PyYAML>=6.0
