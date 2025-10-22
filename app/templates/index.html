@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Log Analytics Query Tool</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* --- Root Variables & Dark Theme Setup --- */
+        :root {
+            /* Light Theme Defaults (Overridden by dark-theme body) */
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --text-primary: #212529;
+            --text-secondary: #495057;
+            --border-color: #343a40;
+            --azure-blue: #0078d4;
+            --azure-blue-hover: #005a9e;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --header-bg: #e9ecef;
+        }
+
+        body.dark-theme {
+            --bg-primary: #212529; /* Dark background */
+            --bg-secondary: #343a40; /* Card background */
+            --text-primary: #ffffff;
+            --text-secondary: #adb5bd;
+            --border-color: #495057;
+            --header-bg: #495057;
+            --shadow-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* --- Global Styles --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 {
+            color: var(--azure-blue);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: var(--text-primary);
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls, .results {
+            background-color: var(--bg-secondary);
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        /* --- Input & Control Layout --- */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .input-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        select, input[type="datetime-local"] {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 1rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--azure-blue);
+            outline: 0;
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.2);
+        }
+
+        /* --- Button Styling --- */
+        button {
+            padding: 12px 20px;
+            background-color: var(--azure-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--azure-blue-hover);
+        }
+
+        button:disabled {
+            background-color: var(--border-color);
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* --- Status/Error Messages --- */
+        #statusMessage {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: none; /* Hidden by default */
+        }
+        .error { color: var(--error-color); background-color: rgba(220, 53, 69, 0.1); }
+        .success { color: var(--success-color); background-color: rgba(40, 167, 69, 0.1); }
+        .loading { color: var(--azure-blue); background-color: rgba(0, 120, 212, 0.1); }
+
+
+        /* --- Table Styling (Flat Headers with Scroll) --- */
+        
+        /* 💡 FIX: Container for the table for both vertical and horizontal scrolling */
+        .table-scroll-container {
+            max-height: 500px; 
+            overflow-y: auto; 
+            overflow-x: auto; /* Enable horizontal scroll */
+            border: 1px solid var(--border-color); 
+            border-radius: 4px;
+        }
+
+        #resultsTable {
+            /* Set min-width to prevent the table from shrinking too much */
+            min-width: 100%; 
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            /* Changed to auto, if fixed is desired, you must set column widths */
+            table-layout: auto; 
+        }
+
+        #resultsTable th, #resultsTable td {
+            border: 1px solid var(--border-color);
+            padding: 12px 8px;
+            text-align: left;
+            /* Allow long header text to wrap */
+            word-wrap: normal; 
+            white-space: normal;
+        }
+
+        #resultsTable thead th {
+            background-color: var(--header-bg);
+            color: var(--text-primary);
+            font-weight: 600;
+            position: sticky; 
+            top: 0;
+            z-index: 10;
+            
+            /* REVERTED/REMOVED ROTATION CSS */
+            /* Removed: writing-mode, height, min-width, max-width, etc. */
+            vertical-align: middle; 
+        }
+
+        #resultsTable tbody tr:nth-child(even) {
+            background-color: var(--bg-primary);
+        }
+        #resultsTable tbody tr:hover {
+            background-color: var(--azure-blue-hover);
+            color: white;
+        }
+        
+        /* Dropdown specific styles */
+        #themeToggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #themeToggle:hover {
+            background-color: var(--header-bg);
+        }
+
+        /* Responsive Layout */
+        @media (min-width: 768px) {
+            .input-group {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+            .input-item {
+                flex: 1 1 30%;
+                min-width: 250px;
+            }
+            .action-group {
+                flex: 1 1 100%;
+                display: flex;
+                gap: 15px;
+                align-items: center;
+            }
+            #runQueryBtn {
+                width: auto;
+                flex-grow: 0;
+            }
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <button id="themeToggle" onclick="toggleTheme()">
+        <i class="fas fa-sun" id="themeIcon"></i> Toggle Theme
+    </button>
+    <h1>Azure Log Analytics Query Tool</h1>
+
+    <div class="controls">
+        <h2><i class="fas fa-server"></i> 1. Select Workspace</h2>
+        <div class="input-group">
+            <div class="input-item">
+                <label for="workspaceSelect">Log Analytics Workspace:</label>
+                <select id="workspaceSelect" disabled>
+                    <option value="">Loading workspaces...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h2><i class="fas fa-wrench"></i> 2. Configure & Run</h2>
+        <div class="input-group">
+            <div class="input-item">
+                <label for="querySelect">Predefined Query:</label>
+                <select id="querySelect">
+                    {% for id in query_ids %}
+                    <option value="{{ id }}">{{ id }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="input-item">
+                <label for="startTime"><i class="far fa-calendar-alt"></i> Start Time:</label>
+                <input type="datetime-local" id="startTime">
+            </div>
+
+            <div class="input-item">
+                <label for="endTime"><i class="far fa-calendar-alt"></i> End Time:</label>
+                <input type="datetime-local" id="endTime">
+            </div>
+            
+            <div class="action-group">
+                <button onclick="runQuery()" id="runQueryBtn" disabled>
+                    <i class="fas fa-play"></i> Run Query
+                </button>
+                <div id="statusMessage" role="alert"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="results">
+        <h2><i class="fas fa-table"></i> 3. Query Results</h2>
+        <div class="table-scroll-container">
+            <table id="resultsTable">
+                <thead>
+                    <tr></tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="100%">Run a query to see results here.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- Utility Functions ---
+
+        /** Formats a Date object to YYYY-MM-DDTHH:MM local datetime format */
+        const formatDateTime = (date) => {
+            const pad = (n) => n < 10 ? '0' + n : n;
+            return date.getFullYear() + '-' +
+                   pad(date.getMonth() + 1) + '-' +
+                   pad(date.getDate()) + 'T' +
+                   pad(date.getHours()) + ':' +
+                   pad(date.getMinutes());
+        };
+        
+        /** Updates the status message box with text and class */
+        const updateStatus = (message, type = 'info') => {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = message;
+            statusMessage.className = ''; // Clear previous classes
+            statusMessage.classList.add(type);
+            statusMessage.style.display = 'block';
+        };
+
+        // --- Theme Toggling ---
+
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('themeIcon');
+            const isDark = body.classList.toggle('dark-theme');
+            
+            if (isDark) {
+                icon.className = 'fas fa-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.className = 'fas fa-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+        
+        /** Applies saved theme on load */
+        const applyTheme = () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
+            const body = document.body;
+            const icon = document.getElementById('themeIcon');
+            
+            if (savedTheme === 'light') {
+                body.classList.remove('dark-theme');
+                icon.className = 'fas fa-moon';
+            } else {
+                body.classList.add('dark-theme');
+                icon.className = 'fas fa-sun';
+            }
+        };
+
+        // --- Initial Setup & Data Fetching ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTheme();
+            
+            // Set default times to the last 24 hours
+            const now = new Date();
+            const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+            document.getElementById('endTime').value = formatDateTime(now);
+            document.getElementById('startTime').value = formatDateTime(oneDayAgo);
+
+            // Start discovery immediately
+            fetchAllWorkspaces();
+        });
+
+        async function fetchAllWorkspaces() {
+            const workspaceSelect = document.getElementById('workspaceSelect');
+            const runQueryBtn = document.getElementById('runQueryBtn');
+
+            updateStatus('Loading all workspaces...', 'loading');
+            workspaceSelect.innerHTML = '<option value="">Loading...</option>';
+            workspaceSelect.disabled = true;
+            runQueryBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/workspaces/all');
+                const data = await response.json();
+
+                if (response.ok) {
+                    workspaceSelect.innerHTML = '';
+                    if (data.length === 0) {
+                        workspaceSelect.innerHTML = '<option value="">No Workspaces Found</option>';
+                        updateStatus('Error: No Log Analytics Workspaces found in accessible subscriptions.', 'error');
+                    } else {
+                        data.forEach(ws => {
+                            const option = document.createElement('option');
+                            option.value = ws.workspace_id; 
+                            option.textContent = `${ws.name} (RG: ${ws.resource_group} | Sub: ${ws.subscription_id})`;
+                            workspaceSelect.appendChild(option);
+                        });
+                        updateStatus('Workspaces loaded successfully.', 'success');
+                        workspaceSelect.disabled = false;
+                        runQueryBtn.disabled = false;
+                    }
+                } else {
+                    const errorMsg = data.error || 'Unknown error during workspace discovery.';
+                    updateStatus(`Error fetching workspaces: ${errorMsg}`, 'error');
+                    workspaceSelect.innerHTML = '<option value="">Error Loading</option>';
+                }
+            } catch (error) {
+                updateStatus(`Network Error during workspace discovery: ${error.message}`, 'error');
+                workspaceSelect.innerHTML = '<option value="">Network Error</option>';
+            }
+        }
+
+        // --- Query Execution ---
+
+        async function runQuery() {
+            const workspaceSelect = document.getElementById('workspaceSelect');
+            const querySelect = document.getElementById('querySelect');
+            const startTime = document.getElementById('startTime');
+            const endTime = document.getElementById('endTime');
+            const runQueryBtn = document.getElementById('runQueryBtn');
+
+            const workspaceId = workspaceSelect.value;
+            const queryId = querySelect.value;
+            const start = startTime.value;
+            const end = endTime.value;
+
+            if (!workspaceId) {
+                updateStatus('Please select a Log Analytics Workspace.', 'error');
+                return;
+            }
+            if (!start || !end) {
+                updateStatus('Please set both Start and End Times.', 'error');
+                return;
+            }
+
+            updateStatus('Running KQL query...', 'loading');
+            runQueryBtn.disabled = true;
+            document.getElementById('resultsTable').innerHTML = '<thead><tr></tr></thead><tbody><tr><td colspan="100%">Executing query...</td></tr></tbody>';
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workspaceId: workspaceId,
+                        queryId: queryId,
+                        start: new Date(start).toISOString(), // Convert local datetime to ISO for backend
+                        end: new Date(end).toISOString()
+                    })
+                });
+                
+                const data = await response.json();
+
+                if (response.ok) {
+                    updateStatus('Query executed successfully.', 'success');
+                    displayResults(data.results, data.columns);
+                } else {
+                    updateStatus(`Query Failed: ${data.error || 'Unknown error'}`, 'error');
+                    displayResults([], []); // Clear table on failure
+                }
+
+            } catch (error) {
+                updateStatus(`Network Error during query execution: ${error.message}`, 'error');
+            } finally {
+                runQueryBtn.disabled = false;
+            }
+        }
+
+        // --- Results Display ---
+
+        function displayResults(rows, columns) {
+            const table = document.getElementById('resultsTable');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            
+            if (rows.length === 0 || columns.length === 0) {
+                // Use the length of the columns array if available, otherwise default to a large number
+                const colSpan = columns.length > 0 ? columns.length : 10; 
+                tbody.innerHTML = `<tr><td colspan="${colSpan}">No data returned for this query and time range.</td></tr>`;
+                return;
+            }
+
+            // Create table header
+            const headerRow = document.createElement('tr');
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            // Create table rows
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.textContent = row[col] === null || row[col] === undefined ? 'N/A' : row[col];
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
