@@ -1,69 +1,41 @@
-# app/api/controllers.py
+# app/config.py (REVISED to assign all needed attributes)
 
-import logging
-from flask import Flask, jsonify, request, render_template
-from app.services.azure_service import AzureService
-from app.config import load_config
-from app.auth.token_cache import AzureTokenCache
+from typing import Dict, Any
+from query import QUERY_TEMPLATES
+# --- Module-Level Constants (Used for definition, but accessed via instance) ---
+AZURE_ARM_RESOURCE_AUTH = "https://management.azure.com/" 
+AZURE_ARM_BASE_URL = "https://management.azure.com" 
+ARM_SUBSCRIPTION_API_VERSION = "2022-12-01"
+ARM_WORKSPACE_API_VERSION = "2022-10-01"
+AZURE_LOG_ANALYTICS_RESOURCE = "https://api.loganalytics.azure.com/"
+AZURE_LOG_ANALYTICS_AUTH_RESOURCE = "https://api.loganalytics.io"
 
-log = logging.getLogger(__name__)
 
-def setup_controllers(app: Flask):
-    config = load_config()
-    token_cache = AzureTokenCache(config)
-    azure_service = AzureService(config, token_cache)
-    
-    # ----------------------------------------------------
-    # STEP 1: RENDER THE BASE HTML PAGE
-    # ----------------------------------------------------
-    @app.route('/')
-    def index():
-        """Renders the single-page application interface."""
-        return render_template('index.html', query_ids=config.PREDEFINED_QUERIES.keys())
-
-    # ----------------------------------------------------
-    # STEP 2: ENDPOINT TO FETCH ALL WORKSPACES
-    # ----------------------------------------------------
-    @app.route('/api/workspaces/all', methods=['GET'])
-    def get_all_workspaces():
-        """Fetches all Log Analytics Workspaces across accessible subscriptions."""
-        try:
-            workspaces = azure_service.discover_all_workspaces()
-            return jsonify(workspaces)
-        except RuntimeError as e:
-            return jsonify({"error": str(e)}), 500
-        except Exception as e:
-            log.error(f"Unhandled error in get_all_workspaces: {e}", exc_info=True)
-            return jsonify({"error": "Internal server error during discovery."}), 500
-
-    # ----------------------------------------------------
-    # STEP 3: LOG ANALYTICS QUERY EXECUTION
-    # ----------------------------------------------------
-    @app.route('/api/query', methods=['POST'])
-    def run_query():
-        data = request.json
+class AppConfig:
+    def __init__(self):
+        # ⚠️ FIX: Assign ALL required module-level constants as instance attributes
+        self.AZURE_ARM_RESOURCE_AUTH = AZURE_ARM_RESOURCE_AUTH
+        self.AZURE_ARM_BASE_URL = AZURE_ARM_BASE_URL
+        self.ARM_SUBSCRIPTION_API_VERSION = ARM_SUBSCRIPTION_API_VERSION
+        self.ARM_WORKSPACE_API_VERSION = ARM_WORKSPACE_API_VERSION
+        self.AZURE_LOG_ANALYTICS_RESOURCE = AZURE_LOG_ANALYTICS_RESOURCE
+        self.AZURE_LOG_ANALYTICS_AUTH_RESOURCE = AZURE_LOG_ANALYTICS_AUTH_RESOURCE
         
-        required_fields = ['queryId', 'start', 'end', 'workspaceId']
-        if not all(field in data for field in required_fields):
-            return jsonify({"error": "Missing required fields in request."}), 400
+        # Predefined KQL Queries
+        self.PREDEFINED_QUERIES: Dict[str, str] = QUERY_TEMPLATES
+        #{
+#            "query_1_errors_last_day": "AzureActivity | where Level == 'Error' | limit 100",
+#            "query_2_heartbeats_summary": "Heartbeat | summarize LastHeartbeat = max(TimeGenerated) by Computer, ResourceId, _ResourceId | order by LastHeartbeat desc | limit 50",
+#            "query_3_all_security_events": "SecurityEvent | where EventID == 4624 or EventID == 4625 | limit 50",
+#            "AppRequests": "AppRequests| take 10"
+ #               list(QUERYTEMPLATES.keys())
+ #       }
         
-        query_id = data['queryId']
-        workspace_id = data['workspaceId']
-        start_time = data['start']
-        end_time = data['end']
+        # Scopes (already instance attributes)
+        self.ARM_SCOPE = f"{self.AZURE_ARM_RESOURCE_AUTH}.default" 
+        self.LA_SCOPE = f"{self.AZURE_LOG_ANALYTICS_AUTH_RESOURCE}/.default" 
 
-        if query_id not in config.PREDEFINED_QUERIES:
-            return jsonify({"error": f"Invalid queryId: {query_id}"}), 400
-
-        kql_query = config.PREDEFINED_QUERIES[query_id]
-
-        try:
-            results = azure_service.run_query(workspace_id, kql_query, start_time, end_time)
-            return jsonify(results)
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400 
-        except RuntimeError as e:
-            return jsonify({"error": str(e)}), 500
-        except Exception as e:
-            log.error(f"Unhandled error during query execution: {e}", exc_info=True)
-            return jsonify({"error": "Failed to execute query.", "detail": str(e)}), 500
+# --- Load Function ---
+def load_config() -> AppConfig:
+    """Instantiates and returns the application configuration."""
+    return AppConfig()
