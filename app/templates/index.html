@@ -1,11 +1,12 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azure Log Analytics Query Tool</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Azure Log Analytics Query Tool</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+<style>
         /* --- Root Variables & Dark Theme Setup --- */
         :root {
             /* Light Theme Defaults (Overridden by dark-theme body) */
@@ -106,7 +107,7 @@
 
         /* --- Button Styling --- */
         button {
-            padding: 12px 20px;
+            padding: 6px 10px;
             background-color: var(--azure-blue);
             color: white;
             border: none;
@@ -133,8 +134,8 @@
 
         /* --- Status/Error Messages --- */
         #statusMessage {
-            margin-top: 15px;
-            padding: 10px;
+            margin-top: 10px;
+            padding: 4px;
             border-radius: 4px;
             font-weight: bold;
             display: none; /* Hidden by default */
@@ -235,69 +236,63 @@
     </style>
 </head>
 <body class="dark-theme">
-    <button id="themeToggle" onclick="toggleTheme()">
-        <i class="fas fa-sun" id="themeIcon"></i> Toggle Theme
+<button id="themeToggle" onclick="toggleTheme()">
+<i class="fas fa-sun" id="themeIcon"></i> Toggle Theme
     </button>
-    <h1>Azure Log Analytics Query Tool</h1>
-
-    <div class="controls">
-        <h2><i class="fas fa-server"></i> 1. Select Workspace</h2>
-        <div class="input-group">
-            <div class="input-item">
-                <label for="workspaceSelect">Log Analytics Workspace:</label>
-                <select id="workspaceSelect" disabled>
-                    <option value="">Loading workspaces...</option>
-                </select>
-            </div>
-        </div>
-    </div>
-
-    <div class="controls">
-        <h2><i class="fas fa-wrench"></i> 2. Configure & Run</h2>
-        <div class="input-group">
-            <div class="input-item">
-                <label for="querySelect">Predefined Query:</label>
-                <select id="querySelect">
+<h1>Azure Log Analytics Query Tool</h1>
+<div class="controls">
+<h2><i class="fas fa-server"></i> 1. Select Workspace</h2>
+<div class="input-group">
+<div class="input-item">
+<label for="workspaceSelect">Log Analytics Workspace:</label>
+<select disabled="" id="workspaceSelect">
+<option value="">Loading workspaces...</option>
+</select>
+</div>
+</div>
+</div>
+<div class="controls">
+<h2><i class="fas fa-wrench"></i> 2. Configure &amp; Run</h2>
+<div class="input-group">
+<div class="input-item">
+<label for="querySelect">Predefined Query:</label>
+<select id="querySelect">
                     {% for id in query_ids %}
                     <option value="{{ id }}">{{ id }}</option>
                     {% endfor %}
                 </select>
-            </div>
-
-            <div class="input-item">
-                <label for="startTime"><i class="far fa-calendar-alt"></i> Start Time:</label>
-                <input type="datetime-local" id="startTime">
-            </div>
-
-            <div class="input-item">
-                <label for="endTime"><i class="far fa-calendar-alt"></i> End Time:</label>
-                <input type="datetime-local" id="endTime">
-            </div>
-            
-            <div class="action-group">
-                <button onclick="runQuery()" id="runQueryBtn" disabled>
-                    <i class="fas fa-play"></i> Run Query
+</div>
+<div class="input-item">
+<label for="startTime"><i class="far fa-calendar-alt"></i> Start Time:</label>
+<input id="startTime" type="datetime-local"/>
+</div>
+<div class="input-item">
+<label for="endTime"><i class="far fa-calendar-alt"></i> End Time:</label>
+<input id="endTime" type="datetime-local"/>
+</div>
+<div class="action-group">
+<button disabled="" id="runQueryBtn" onclick="runQuery()">
+<i class="fas fa-play"></i> Run Query
                 </button>
-                <div id="statusMessage" role="alert"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="results">
-        <h2><i class="fas fa-table"></i> 3. Query Results</h2>
-        <div class="table-scroll-container">
-            <table id="resultsTable">
-                <thead>
-                    <tr></tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="100%">Run a query to see results here.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
+<div id="statusMessage" role="alert"></div>
+</div>
+</div>
+</div>
+<div class="results">
+<h2><i class="fas fa-table"></i> 3. Query Results</h2>
+<div class="table-scroll-container">
+<button onclick="copyTableToClipboard()">Copy Table</button>
+<table id="resultsTable">
+<thead>
+<tr></tr>
+</thead>
+<tbody>
+<tr><td colspan="100%">Run a query to see results here.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<script>
         // --- Utility Functions ---
 
         /** Formats a Date object to YYYY-MM-DDTHH:MM local datetime format */
@@ -500,5 +495,25 @@
             });
         }
     </script>
+<script>
+function copyTableToClipboard() {
+  const table = document.getElementById("resultsTable");
+  if (!table) return;
+
+  let range = document.createRange();
+  range.selectNode(table);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  try {
+    document.execCommand("copy");
+    alert("Table copied to clipboard!");
+  } catch (err) {
+    alert("Failed to copy table.");
+  }
+
+  window.getSelection().removeAllRanges();
+}
+</script>
 </body>
 </html>
